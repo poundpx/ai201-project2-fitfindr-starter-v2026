@@ -46,67 +46,39 @@ Fields I found in listings: id, title, description, category, style_tags, size, 
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
-
-
-
+A user types what they want in plain language, like 'vintage graphic tee under $30, size M'. FitFindr parses the query, searches the listings, picks the best match, suggests outfits using the user's wardrobe, and writes a short social caption. If nothing matches, it stops and tells the user what to change instead of calling the other tools.
 ---
 
 ## Tool Inventory
 ## Milestone 2 notes
-For tools inventory we have 3:
+### search_listings
+- What it does: scores listings by keyword overlap with the description, applies size and price limits, and returns the best matches.
+- Inputs: description (str), size (str or None), max_price (float or None)
+- Returns: a list of listing dicts (id, title, description, category, style_tags, size, condition, price, colors, brand, platform), best match first, at most config.SEARCH_RESULT_LIMIT. Size matches by splitting the size string into tokens, so "M" matches "S/M" but not "XL".
+- When it has nothing: returns an empty list [].
 
-1. search_listings:
-It does filters the listing by keyword, size and max price then returns matching items.
--your input gonna be store as string for these 3 elements description in string size in string and max price in float.
--return output as a list of dictionary( id, title, description, category,style_tags, size, condition, price, colors,  brand, platform)
--IF NOTHING MATCH IT RETURN EMPTY
+### suggest_outfit
+- What it does: suggests one or two outfits combining the found item with the user's wardrobe.
+- Inputs: new_item (dict, one listing), wardrobe (dict with an "items" list)
+- Returns: a non-empty string of outfit ideas.
+- When it has nothing: with an empty wardrobe {'items': []}, returns general styling advice as a string.
 
-2. suggest_outfit 
-It recommend user by come bine found items with suggest outfit ideas.
-- Input is new_item(dict, one listing), wardrobe (dict with an "items" list)
--return a a string of outfit ideas
--when nothing to give: if everything is empty then return ({'item':[]}), returns general styling advice as a string, never fails.
-
-3. create_fit_card
-- writes a short social media caption for outfit
--input is outfit ( string, the ideas from suggest_outfit),new_item(dict, the listing)
--returns a short caption string
--when nothing give return empty string.
-
-Planning loop 
--if search_listing returns empty list store a message in session["message"] leave session["fit_card"] as none and stop.other wise try to use result as session["selected_item"] and called suggest_outfit.
-
+### create_fit_card
+- What it does: writes a 2 to 4 sentence social caption for the find.
+- Inputs: outfit (str), new_item (dict, one listing)
+- Returns: a caption string.
+- When it has nothing: if outfit is empty, returns a descriptive message string, not an exception.
 
 ## Planning Loop
+**Branch rule:** If search_listings returns an empty list, put a message naming what to change in session["error"], leave session["fit_card"] as None, and return without calling suggest_outfit. Otherwise take the first result as session["selected_item"] and call suggest_outfit, then create_fit_card.
 
-## Milestone 3 notes
-1. Given a query that matches at least one listing, the agent completes all
-   three tool calls and returns a fit card — in at least 4 of 5 tries.
-2. Given a query that matches no listings, the agent stops before calling
-   suggest_outfit and returns a message naming what to change — 5 of 5 tries.
-3. fter a successful run of 'vintage graphic tee under $30, size M',
-   session["selected_item"]["id"] equals the id of the item that suggest_outfit
-   received, in at least 4 of 5 tries.
-   Why 4 of 5: this is my first agent loop and I may have wiring bugs, so I
-   left room for one bad run rather than claiming it is perfect.
-4.  The fit card contains at least 2 words from the selected item's
-   title (for example "Y2K" and "Baby Tee"), in at least 4 of 5 tries, even
-   though the model's exact wording is different each time.
-   Why 4 of 5: the model is random, so on a bad run it can write a generic
-   caption and skip the item. I check for title words because those must stay
-   the same, while the rest of the wording can vary.
-5.  Running the same query 5 times returns the exact
-   same list of listing ids in the same order, 5 of 5 tries.
-   Why 5 of 5: search_listings is a plain Python filter with no model call and
-   no randomness, so any difference between runs would mean a bug.
+**Where it lives:** `agent.py::run_agent`
+
+**How the query is parsed:** regex (price from "$N", size from "size X", the rest is the description)
+
+**What moves through the session:** parsed -> search_results -> selected_item -> outfit_suggestion -> fit_card, each read back out of the session before the next call.
 
 ## Sample Run
-
-<!-- Two things go here.
-
-     1. One FULL query and its output, pasted as text.
-     2. Your three per-tool terminal tests — the command and what it printed. -->
 
 **One full query**
 
@@ -148,9 +120,9 @@ $ python -c "from tools import suggest_outfit; from utils.data_loader import get
 * **Shoes:** Black combat boots (`w_008`)
 * **Accessories:** Black crossbody bag (`w_010`)
 ```
-$python app.py ask 'vintage graphic tee under $30, size M'
+python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
 ```
-Absolute dream find on Depop today—scored these vintage Levi's 501s for just $38! The medium wash has that perfectly broken-in, effortless 90s slouch. Can't wait to live in these with my beat-up white sneakers all season.
+bsolute dream find on Depop today—scored these vintage Levi's 501s for just $38! The medium wash has that perfectly broken-in, effortless 90s slouch. Can't wait to live in these with my beat-up white sneakers all season.
 ---
 
 ## How I Used AI

@@ -127,24 +127,15 @@ bsolute dream find on Depop today—scored these vintage Levi's 501s for just $3
 
 ## How I Used AI
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
-
-     "I used Claude to help me code" is not enough.
-
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
-
 **Moment 1**
-
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- What I asked for: a search_listings implementation from my spec.
+- What came back: a version that required every keyword to match.
+- What I changed: the starter's docstring said to score by keyword overlap, drop zeros, sort, and cap at config.SEARCH_RESULT_LIMIT, so I switched to scoring. My test then returned 7 loosely related items, which is a trade-off of scoring.
 
 **Moment 2**
-
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- What I asked for: how to match size "M" against sizes like "S/M" and "XL".
+- What came back: a warning that a substring check would match wrong sizes, with a fix to split the size into tokens.
+- What I changed: I used token matching, so "M" matches "S/M" but not "XL".
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

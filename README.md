@@ -18,6 +18,9 @@
 >
 > **The rest of this file is your submission.** Fill it in as you go.
 
+## Milestone 1 notes
+
+Fields I found in listings: id, title, description, category, style_tags, size, condition, price, colors, brand, platform
 ---
 
 <!-- ─────────────────────────────────────────────────────────────────────────

@@ -23,29 +23,9 @@
 Fields I found in listings: id, title, description, category, style_tags, size, condition, price, colors, brand, platform
 ---
 
-## Milestone 2 notes
-For tools inventory we have 3:
 
-1. search_listings:
-It does filters the listing by keyword, size and max price then returns matching items.
--your input gonna be store as string for these 3 elements description in string size in string and max price in float.
--return output as a list of dictionary( id, title, description, category,style_tags, size, condition, price, colors,  brand, platform)
--IF NOTHING MATCH IT RETURN EMPTY
 
-2. suggest_outfit 
-It recommend user by come bine found items with suggest outfit ideas.
-- Input is new_item(dict, one listing), wardrobe (dict with an "items" list)
--return a a string of outfit ideas
--when nothing to give: if everything is empty then return ({'item':[]}), returns general styling advice as a string, never fails.
-
-3. create_fit_card
-- writes a short social media caption for outfit
--input is outfit ( string, the ideas from suggest_outfit),new_item(dict, the listing)
--returns a short caption string
--when nothing give return empty string.
-
-Planning loop 
--if search_listing returns empty list store a message in session["message"] leave session["fit_card"] as none and stop.other wise try to use result as session["selected_item"] and called suggest_outfit.
+-
 <!-- 
 ─────────────────────────────────────────────────────────────────────────
      HOW TO USE THIS FILE
@@ -73,62 +53,53 @@ Planning loop
 ---
 
 ## Tool Inventory
+## Milestone 2 notes
+For tools inventory we have 3:
 
-<!-- Four lines per tool. This is worth 2 points and it's the single most
-     common place students lose them.
+1. search_listings:
+It does filters the listing by keyword, size and max price then returns matching items.
+-your input gonna be store as string for these 3 elements description in string size in string and max price in float.
+-return output as a list of dictionary( id, title, description, category,style_tags, size, condition, price, colors,  brand, platform)
+-IF NOTHING MATCH IT RETURN EMPTY
 
-     "Returns a list" earns NOTHING. The description has to say what is IN
-     the list.
+2. suggest_outfit 
+It recommend user by come bine found items with suggest outfit ideas.
+- Input is new_item(dict, one listing), wardrobe (dict with an "items" list)
+-return a a string of outfit ideas
+-when nothing to give: if everything is empty then return ({'item':[]}), returns general styling advice as a string, never fails.
 
-     The empty case isn't optional either — it's the thing your loop branches
-     on, and if you don't decide it here you'll discover it as a crash in
-     Milestone 5. -->
+3. create_fit_card
+- writes a short social media caption for outfit
+-input is outfit ( string, the ideas from suggest_outfit),new_item(dict, the listing)
+-returns a short caption string
+-when nothing give return empty string.
 
-### `search_listings`
+Planning loop 
+-if search_listing returns empty list store a message in session["message"] leave session["fit_card"] as none and stop.other wise try to use result as session["selected_item"] and called suggest_outfit.
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
-
-### `suggest_outfit`
-
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
-
-### `create_fit_card`
-
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
-
----
 
 ## Planning Loop
 
-<!-- Your branch rule, stated as a rule — the condition AND both paths — plus
-     the file and function that holds it.
-
-     Like this:
-       "If search_listings returns an empty list, put a message in the session
-        and stop. Otherwise take the first result and go to suggest_outfit."
-        — agent.py::run_agent
-
-     The grader checks your code against what you claim here, so the file and
-     function have to be real. -->
-
-**Branch rule:**
-
-**Where it lives:** `agent.py::run_agent`
-
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
-
-**What moves through the session:** <!-- which fields, in what order -->
-
----
+## Milestone 3 notes
+1. Given a query that matches at least one listing, the agent completes all
+   three tool calls and returns a fit card — in at least 4 of 5 tries.
+2. Given a query that matches no listings, the agent stops before calling
+   suggest_outfit and returns a message naming what to change — 5 of 5 tries.
+3. fter a successful run of 'vintage graphic tee under $30, size M',
+   session["selected_item"]["id"] equals the id of the item that suggest_outfit
+   received, in at least 4 of 5 tries.
+   Why 4 of 5: this is my first agent loop and I may have wiring bugs, so I
+   left room for one bad run rather than claiming it is perfect.
+4.  The fit card contains at least 2 words from the selected item's
+   title (for example "Y2K" and "Baby Tee"), in at least 4 of 5 tries, even
+   though the model's exact wording is different each time.
+   Why 4 of 5: the model is random, so on a bad run it can write a generic
+   caption and skip the item. I check for title words because those must stay
+   the same, while the rest of the wording can vary.
+5.  Running the same query 5 times returns the exact
+   same list of listing ids in the same order, 5 of 5 tries.
+   Why 5 of 5: search_listings is a plain Python filter with no model call and
+   no randomness, so any difference between runs would mean a bug.
 
 ## Sample Run
 
@@ -140,8 +111,20 @@ Planning loop
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30, size M'
+ Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
 
+  Outfit:   **Outfit 1: Ultimate Y2K Streetwear**
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (w_001)
+*   **Shoes:** Chunky white sneakers (w_007)
+*   **Accessories:** Black crossbody bag (w_010)
+
+**Outfit 2: Edgy Contrast**
+*   **Bottoms:** Wide-leg khaki trousers (w_002)
+*   **Outerwear:** Vintage black denim jacket (w_006)
+*   **Shoes:** Black combat boots (w_008)
+
+  Fit card: Found the absolute cutest Y2K butterfly baby tee for just $18 on Depop and I am obsessed! I'm already planning to style it with baggy jeans and chunky sneakers for ultimate 2000s streetwear vibes, or toughen it out with wide-leg khakis and combat boots for an edgy contrast. Grab it before I change my mind and keep it for myself! 🦋✨
 ```
 
 **The three tools, tested one at a time**
@@ -150,17 +133,24 @@ $ python app.py ask '...'
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
 
 ```
-
+[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_011', 'title': 'Low-Rise Cargo Pants — Khaki', 'description': 'Y2K era low-rise cargo pants. Lots of pockets. Khaki color, slightly distressed at the hems. Great for layering with a long tee.', 'category': 'bottoms', 'style_tags': ['y2k', 'cargo', '2000s', 'streetwear'], 'size': 'W29', 'condition': 'fair', 'price': 27.0, 'colors': ['khaki', 'tan'], 'brand': None, 'platform': 'poshmark'}, {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded navy crewneck. Genuinely vintage — not manufactured distressed. Ribbed cuffs and hem. No graphics, clean.', 'category': 'tops', 'style_tags': ['vintage', 'basics', 'oversized', 'classic'], 'size': 'XL (fits oversized)', 'condition': 'good', 'price': 20.0, 'colors': ['navy'], 'brand': None, 'platform': 'thredUp'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
 ```
-$ python -c "from tools import suggest_outfit; ..."
-
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
 ```
+**Outfit 1: Casual & Classic**
+* **Top:** White ribbed tank top (`w_003`)
+* **Outerwear:** Vintage black denim jacket (`w_006`)
+* **Shoes:** Chunky white sneakers (`w_007`)
+* **Accessories:** Brown leather belt (`w_009`)
 
+**Outfit 2: Cozy Streetwear**
+* **Top:** Oversized grey crewneck sweatshirt (`w_004`)
+* **Shoes:** Black combat boots (`w_008`)
+* **Accessories:** Black crossbody bag (`w_010`)
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+$python app.py ask 'vintage graphic tee under $30, size M'
 ```
-
+Absolute dream find on Depop today—scored these vintage Levi's 501s for just $38! The medium wash has that perfectly broken-in, effortless 90s slouch. Can't wait to live in these with my beat-up white sneakers all season.
 ---
 
 ## How I Used AI

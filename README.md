@@ -23,7 +23,31 @@
 Fields I found in listings: id, title, description, category, style_tags, size, condition, price, colors, brand, platform
 ---
 
-<!-- ─────────────────────────────────────────────────────────────────────────
+## Milestone 2 notes
+For tools inventory we have 3:
+
+1. search_listings:
+It does filters the listing by keyword, size and max price then returns matching items.
+-your input gonna be store as string for these 3 elements description in string size in string and max price in float.
+-return output as a list of dictionary( id, title, description, category,style_tags, size, condition, price, colors,  brand, platform)
+-IF NOTHING MATCH IT RETURN EMPTY
+
+2. suggest_outfit 
+It recommend user by come bine found items with suggest outfit ideas.
+- Input is new_item(dict, one listing), wardrobe (dict with an "items" list)
+-return a a string of outfit ideas
+-when nothing to give: if everything is empty then return ({'item':[]}), returns general styling advice as a string, never fails.
+
+3. create_fit_card
+- writes a short social media caption for outfit
+-input is outfit ( string, the ideas from suggest_outfit),new_item(dict, the listing)
+-returns a short caption string
+-when nothing give return empty string.
+
+Planning loop 
+-if search_listing returns empty list store a message in session["message"] leave session["fit_card"] as none and stop.other wise try to use result as session["selected_item"] and called suggest_outfit.
+<!-- 
+─────────────────────────────────────────────────────────────────────────
      HOW TO USE THIS FILE
 
      This is your submission. Fill each section in as you finish the milestone

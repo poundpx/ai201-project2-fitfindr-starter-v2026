@@ -23,11 +23,7 @@
 Fields I found in listings: id, title, description, category, style_tags, size, condition, price, colors, brand, platform
 ---
 
-
-
--
-<!-- 
-─────────────────────────────────────────────────────────────────────────
+<!-- ─────────────────────────────────────────────────────────────────────────
      HOW TO USE THIS FILE
 
      This is your submission. Fill each section in as you finish the milestone
@@ -46,57 +42,82 @@ Fields I found in listings: id, title, description, category, style_tags, size, 
 
 ## What This Does
 
-A user types what they want in plain language, like 'vintage graphic tee under $30, size M'. FitFindr parses the query, searches the listings, picks the best match, suggests outfits using the user's wardrobe, and writes a short social caption. If nothing matches, it stops and tells the user what to change instead of calling the other tools.
+<!-- Three or four sentences: what a user asks for, and what they get back. -->
+
+
+
 ---
 
 ## Tool Inventory
-## Milestone 2 notes
-### search_listings
-- What it does: scores listings by keyword overlap with the description, applies size and price limits, and returns the best matches.
-- Inputs: description (str), size (str or None), max_price (float or None)
-- Returns: a list of listing dicts (id, title, description, category, style_tags, size, condition, price, colors, brand, platform), best match first, at most config.SEARCH_RESULT_LIMIT. Size matches by splitting the size string into tokens, so "M" matches "S/M" but not "XL".
-- When it has nothing: returns an empty list [].
 
-### suggest_outfit
-- What it does: suggests one or two outfits combining the found item with the user's wardrobe.
-- Inputs: new_item (dict, one listing), wardrobe (dict with an "items" list)
-- Returns: a non-empty string of outfit ideas.
-- When it has nothing: with an empty wardrobe {'items': []}, returns general styling advice as a string.
+<!-- Four lines per tool. This is worth 2 points and it's the single most
+     common place students lose them.
 
-### create_fit_card
-- What it does: writes a 2 to 4 sentence social caption for the find.
-- Inputs: outfit (str), new_item (dict, one listing)
-- Returns: a caption string.
-- When it has nothing: if outfit is empty, returns a descriptive message string, not an exception.
+     "Returns a list" earns NOTHING. The description has to say what is IN
+     the list.
+
+     The empty case isn't optional either — it's the thing your loop branches
+     on, and if you don't decide it here you'll discover it as a crash in
+     Milestone 5. -->
+
+### `search_listings`
+
+- **What it does:** Searches the listings in `data/listings.json` for items that match the user's keywords, keeps only those that fit the size and price limit, and ranks them by how many keywords they match.
+- **Inputs:** `description` (str) is the keywords, e.g. "vintage graphic tee". Filler words like "a", "the" and "under" are ignored. `size` (str or None) is a size such as "M"; None means no size filter. `max_price` (float or None) is the price ceiling; None means no price filter.
+- **Returns:** A list of listing dicts (id, title, description, category, style_tags, size, condition, price, colors, brand, platform), best match first. Score = number of keywords found in the listing's title, description, category and style_tags; a score of 0 is dropped. Size matches when the user's size equals one whole word of the listing's size ("M" matches "S/M" but not "XL" or "US 9"). Price matches when price <= max_price (inclusive). At most `config.SEARCH_RESULT_LIMIT` results.
+- **When it has nothing:** Returns an empty list `[]`, never None and never an exception. The loop branches on this.
+
+### `suggest_outfit`
+
+- **What it does:** Asks the model to mix the newly found item with pieces the user already owns and suggest one or two outfits.
+- **Inputs:** `new_item` (dict, one listing from search_listings), `wardrobe` (dict with an `items` list, each item a dict with id, name, category, colors, style_tags, notes).
+- **Returns:** A non-empty string of outfit ideas that name specific wardrobe pieces.
+- **When it has nothing:** If the wardrobe is empty (`{"items": []}`), it still returns a non-empty string of general styling advice for the item. It never returns `""` or None.
+
+### `create_fit_card`
+
+- **What it does:** Asks the model to write a short caption about the find, the kind of thing someone would post.
+- **Inputs:** `outfit` (str, the text from suggest_outfit), `new_item` (dict, one listing).
+- **Returns:** A caption string of 2 to 4 sentences that mentions the item (and its price and platform) and the outfit idea.
+- **When it has nothing:** If `outfit` is empty or only whitespace, it skips the model and returns a short message string saying no fit card could be written because there were no outfit ideas. It never raises.
+
+---
 
 ## Planning Loop
-**Branch rule:** If search_listings returns an empty list, put a message naming what to change in session["error"], leave session["fit_card"] as None, and return without calling suggest_outfit. Otherwise take the first result as session["selected_item"] and call suggest_outfit, then create_fit_card.
+
+<!-- Your branch rule, stated as a rule — the condition AND both paths — plus
+     the file and function that holds it.
+
+     Like this:
+       "If search_listings returns an empty list, put a message in the session
+        and stop. Otherwise take the first result and go to suggest_outfit."
+        — agent.py::run_agent
+
+     The grader checks your code against what you claim here, so the file and
+     function have to be real. -->
+
+**Branch rule:** If `search_listings` returns an empty list, put a message in `session["error"]` that tells the user what to change (remove the size, raise the price, or use fewer or different keywords, with an example), leave `session["fit_card"]` as None, and return without calling `suggest_outfit` or `create_fit_card`. Otherwise take the first result as `session["selected_item"]` and go on to `suggest_outfit`, then `create_fit_card`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** regex (price from "$N", size from "size X", the rest is the description)
+**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
 
-**What moves through the session:** parsed -> search_results -> selected_item -> outfit_suggestion -> fit_card, each read back out of the session before the next call.
+**What moves through the session:** <!-- which fields, in what order -->
+
+---
 
 ## Sample Run
+
+<!-- Two things go here.
+
+     1. One FULL query and its output, pasted as text.
+     2. Your three per-tool terminal tests — the command and what it printed. -->
 
 **One full query**
 
 ```
-$ python app.py ask 'vintage graphic tee under $30, size M'
- Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+$ python app.py ask '...'
 
-  Outfit:   **Outfit 1: Ultimate Y2K Streetwear**
-*   **Bottoms:** Baggy straight-leg jeans, dark wash (w_001)
-*   **Shoes:** Chunky white sneakers (w_007)
-*   **Accessories:** Black crossbody bag (w_010)
-
-**Outfit 2: Edgy Contrast**
-*   **Bottoms:** Wide-leg khaki trousers (w_002)
-*   **Outerwear:** Vintage black denim jacket (w_006)
-*   **Shoes:** Black combat boots (w_008)
-
-  Fit card: Found the absolute cutest Y2K butterfly baby tee for just $18 on Depop and I am obsessed! I'm already planning to style it with baggy jeans and chunky sneakers for ultimate 2000s streetwear vibes, or toughen it out with wide-leg khakis and combat boots for an edgy contrast. Grab it before I change my mind and keep it for myself! 🦋✨
 ```
 
 **The three tools, tested one at a time**
@@ -105,37 +126,39 @@ $ python app.py ask 'vintage graphic tee under $30, size M'
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
 
 ```
-[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_011', 'title': 'Low-Rise Cargo Pants — Khaki', 'description': 'Y2K era low-rise cargo pants. Lots of pockets. Khaki color, slightly distressed at the hems. Great for layering with a long tee.', 'category': 'bottoms', 'style_tags': ['y2k', 'cargo', '2000s', 'streetwear'], 'size': 'W29', 'condition': 'fair', 'price': 27.0, 'colors': ['khaki', 'tan'], 'brand': None, 'platform': 'poshmark'}, {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded navy crewneck. Genuinely vintage — not manufactured distressed. Ribbed cuffs and hem. No graphics, clean.', 'category': 'tops', 'style_tags': ['vintage', 'basics', 'oversized', 'classic'], 'size': 'XL (fits oversized)', 'condition': 'good', 'price': 20.0, 'colors': ['navy'], 'brand': None, 'platform': 'thredUp'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
-```
-$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
-```
-**Outfit 1: Casual & Classic**
-* **Top:** White ribbed tank top (`w_003`)
-* **Outerwear:** Vintage black denim jacket (`w_006`)
-* **Shoes:** Chunky white sneakers (`w_007`)
-* **Accessories:** Brown leather belt (`w_009`)
 
-**Outfit 2: Cozy Streetwear**
-* **Top:** Oversized grey crewneck sweatshirt (`w_004`)
-* **Shoes:** Black combat boots (`w_008`)
-* **Accessories:** Black crossbody bag (`w_010`)
 ```
-python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+$ python -c "from tools import suggest_outfit; ..."
+
 ```
-bsolute dream find on Depop today—scored these vintage Levi's 501s for just $38! The medium wash has that perfectly broken-in, effortless 90s slouch. Can't wait to live in these with my beat-up white sneakers all season.
+
+```
+$ python -c "from tools import create_fit_card; ..."
+
+```
+
 ---
 
 ## How I Used AI
 
+<!-- Two specific moments. What you asked, what came back, what you changed.
+
+     "I used Claude to help me code" is not enough.
+
+     "I gave Claude my search_listings spec. It returned None on no match
+     instead of an empty list, so I changed it" is the level we want. -->
+
 **Moment 1**
-- What I asked for: a search_listings implementation from my spec.
-- What came back: a version that required every keyword to match.
-- What I changed: the starter's docstring said to score by keyword overlap, drop zeros, sort, and cap at config.SEARCH_RESULT_LIMIT, so I switched to scoring. My test then returned 7 loosely related items, which is a trade-off of scoring.
+
+- *What I asked for:*
+- *What came back:*
+- *What I changed:*
 
 **Moment 2**
-- What I asked for: how to match size "M" against sizes like "S/M" and "XL".
-- What came back: a warning that a substring check would match wrong sizes, with a fix to split the size into tokens.
-- What I changed: I used token matching, so "M" matches "S/M" but not "XL".
+
+- *What I asked for:*
+- *What came back:*
+- *What I changed:*
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

@@ -18,10 +18,6 @@
 >
 > **The rest of this file is your submission.** Fill it in as you go.
 
-## Milestone 1 notes
-
-Fields I found in listings: id, title, description, category, style_tags, size, condition, price, colors, brand, platform
----
 
 <!-- ─────────────────────────────────────────────────────────────────────────
      HOW TO USE THIS FILE
@@ -42,7 +38,7 @@ Fields I found in listings: id, title, description, category, style_tags, size, 
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
+A user types what they want in plain language, for example 'vintage graphic tee under $30, size M'. FitFindr pulls out the price limit and the size, searches the listings, and picks the best-scoring match. It then asks the model for outfit ideas that combine that item with pieces from the user's wardrobe, and writes a short social caption for the find. If nothing matches, it stops and tells the user what to change instead of calling the other tools.
 
 
 
@@ -100,9 +96,9 @@ Fields I found in listings: id, title, description, category, style_tags, size, 
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex. The price comes from a `$N` pattern and the size from "size X". Whatever is left of the query becomes the description. If a price or size is missing, that value is None and search_listings skips that filter.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `parsed` (description, size, max_price) → `search_results` → `selected_item` (the first result) → `outfit_suggestion` → `fit_card`. Each tool reads its input back out of the session. On an empty search, `error` is set and `fit_card` stays None.
 
 ---
 
@@ -150,15 +146,15 @@ $ python -c "from tools import create_fit_card; ..."
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* i using claude to generalize me the flow of each element to understand code struction
+- *What came back:* clear structure and explanation of everything but its usually overload
+- *What I changed:* targeting each part and element instead of over load understanding everything at once
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* generate other project to learn applying my skill so i can have better understand of this current project
+- *What came back:* clean everything but some part is still hard to understand or hard to apply to real world scenario
+- *What I changed:* be more specific with claude before transform project from 1 subject to another with different requirement or better planning
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

@@ -17,7 +17,7 @@ SCENARIOS = [
     {
         # Criterion 1: a query the data can match
         "name": "matching query completes",
-        "query": "miles morale adidas under $90",
+        "query": "adidas track jacket under $90",
         "wardrobe": "example",
         "criterion": 1,
     },
@@ -52,9 +52,9 @@ SCENARIOS = [
     # Criterion 5: five different queries with a max price, three also with a size.
     {"name": "price filter: dragonball sweat pant", "query": "dragonball sweat pant under $30",
      "wardrobe": "example", "criterion": 5},
-    {"name": "price+size filter: uniqlo sweat pant", "query": "uniqlo sweat pant size M under $20",
+    {"name": "price+size filter: graphic tee", "query": "graphic tee size L under $30",
      "wardrobe": "example", "criterion": 5},
-    {"name": "price+size filter: bomber jacket tee", "query": "bomber jacket tee size XL under $100",
+    {"name": "price+size filter: crewneck", "query": "crewneck sweatshirt size XL under $25",
      "wardrobe": "example", "criterion": 5},
     {"name": "price filter: slip dress", "query": "silk slip dress under $40",
      "wardrobe": "example", "criterion": 5},

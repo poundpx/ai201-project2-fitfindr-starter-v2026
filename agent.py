@@ -167,7 +167,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         )
         trace.step(
             "suggest_outfit",
-            inputs=f"item={session['selected_item']['title']!r}, wardrobe_items={len(session['wardrobe'].get('items', []))}",
+            inputs=f"item={session['selected_item']['title']!r}, item_id={session['selected_item']['id']}, wardrobe_items={len(session['wardrobe'].get('items', []))}",
             returned=session["outfit_suggestion"],
         )
 
@@ -178,7 +178,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         )
         trace.step(
             "create_fit_card",
-            inputs=f"item={session['selected_item']['title']!r}, outfit={session['outfit_suggestion'][:40]!r}",
+            inputs=f"item={session['selected_item']['title']!r}, item_id={session['selected_item']['id']}, outfit={session['outfit_suggestion'][:40]!r}",
             returned=session["fit_card"])
         
     except ModelUnavailable as exc:

@@ -174,19 +174,77 @@ $ python -c "from tools import create_fit_card; ..."
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
+Produced by `python run_eval.py --label before` (`results/run_2026-10-10_2140_before.md`),
+cache off, 5 tries per scenario, 90 model calls in total. Each try was marked PASS or
+FAIL by hand against the rule in `criteria.md`.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools (`adidas track jacket under $90`) | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before the second tool (`miku helmet size xxxl under $100`) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Same item id in session, `suggest_outfit` and `create_fit_card` (`h&m comfy pant under $40`) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card is 2-4 sentences and has the price (`corduroy bucket hat under $20`) | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Every result within the price ceiling and size (5 queries) | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+Note on an earlier run: my first full run (`results/run_2026-10-10_2132.md`, no label) used
+`miles morale adidas under $90` for criterion 1. No listing contains those words, so all
+5 tries stopped at the empty branch. It had only worked by hand because `90$` was not
+parsed as a price, so the stray `90` matched `90s` in a listing title. Two criterion 5
+queries in that run also returned `[]`, which passes a price/size check without testing
+it. I replaced those three queries with ones that match real listings and re-ran. That is
+a fix to the test inputs; the criteria and targets were not changed.
+
+**Real output from one try per criterion**
+
+Criterion 1: `agent.py::run_agent` and `tools.py::create_fit_card`, query `adidas track jacket under $90`, try 1:
 
 ```
+[1] search_listings (via MCP)
+      in:  description='adidas track jacket under', size=None, max_price=90.0
+      out: 4 items: 90s Track Jacket - Navy/White Stripe, Denim Jacket - Light Wash, Cropped, 90s Leather Bomber - Black + 1 more
+[2] suggest_outfit
+      in:  item='90s Track Jacket - Navy/White Stripe', item_id=lst_004, wardrobe_items=10
+[3] create_fit_card
+      in:  item='90s Track Jacket - Navy/White Stripe', item_id=lst_004, ...
 
+Fit card: Scored this gorgeous navy and white striped 90s track jacket for just $45 on Poshmark and I'm obsessed. I'm planning to wear it two ways: super casual for daytime with baggy dark-wash denim and chunky sneakers, or dressed up a bit with wide-leg khaki trousers and combat boots. It's the ultimate sporty-meets-chic piece for that effortless retro vibe!
+```
+
+Criterion 2: `agent.py::run_agent`, the `if not session["search_results"]` branch, query `miku helmet size xxxl under $100`, try 1:
+
+```
+[1] search_listings (via MCP)
+      in:  description='miku helmet   under', size=xxxl, max_price=100.0
+      out: [] (empty)
+[2] branch: empty search
+      ->   stopping, suggest_outfit not called
+
+No listings matched 'miku helmet   under' in size xxxl under $100. Try removing the size, raising your max price, or using fewer or different keywords (for example 'denim jacket' instead of 'distressed light-wash denim jacket').
+```
+
+Criterion 3: `agent.py::run_agent`, query `h&m comfy pant under $40`, try 1. The same `item_id=lst_005` (Corduroy Wide-Leg Pants, the first search result and `session["selected_item"]`) reached both tools:
+
+```
+[2] suggest_outfit
+      in:  item='Corduroy Wide-Leg Pants - Rust', item_id=lst_005, wardrobe_items=10
+[3] create_fit_card
+      in:  item='Corduroy Wide-Leg Pants - Rust', item_id=lst_005, outfit='Here is an outfit combining the new rust'
+```
+
+Criterion 4: `tools.py::create_fit_card`, query `corduroy bucket hat under $20`, try 1 (3 sentences, contains `$14`):
+
+```
+Score this reversible brown plaid bucket hat for just $14 on thredUp and I'm honestly obsessed. It's giving major 90s indie sleaze whether I'm throwing it on with baggy denim for a chill coffee run or styling it over an oversized crewneck with combat boots. Such a good little secondhand win!
+```
+
+Criterion 5: `tools.py::search_listings`, checked directly (no model, so all 5 tries are identical). Every returned (price, size) is within the ceiling, and the size is a whole word of the listing size:
+
+```
+dragonball sweat pant under $30        -> Low-Rise Cargo Pants (27.0, W29), Oversized Crewneck Sweatshirt (20.0, XL (fits oversized))
+graphic tee size L under $30           -> Graphic Tee (24.0, L), Vintage Band Tee (19.0, L), Vintage Graphic Hoodie (26.0, L)
+crewneck sweatshirt size XL under $25  -> Oversized Crewneck Sweatshirt (20.0, XL (fits oversized)), Oversized College Crewneck (21.0, XL)
+silk slip dress under $40              -> 90s Silk Slip Dress (30.0, M), Leather Belt (12.0, One Size (adjustable)), Vintage Linen Blazer (38.0, M/L), Silk Button-Down (28.0, M)
+platform sneakers size 8 under $50     -> Platform Sneakers (48.0, US 8)
 ```
 
 ---

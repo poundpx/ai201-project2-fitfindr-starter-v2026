@@ -112,26 +112,51 @@ A user types what they want in plain language, for example 'vintage graphic tee 
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
+[1] search_listings (via MCP)
+      in:  description='vintage graphic tee under', size=None, max_price=30.0
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[2] suggest_outfit
+      in:  item='Y2K Baby Tee — Butterfly Print', item_id=lst_002, wardrobe_items=10
+      out: **Outfit 1:** Pair the Y2K butterfly baby tee with your baggy dark wash jeans (`w_001`), chunky white sneakers…
+[3] create_fit_card
+      in:  item='Y2K Baby Tee — Butterfly Print', item_id=lst_002, outfit='**Outfit 1:** Pair the Y2K butterfly bab'
+      out: Found this cute little Y2K butterfly baby tee scrolling on Depop for just $18 and I'm obsessed. I'm totally pl…
 
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   **Outfit 1:** Pair the Y2K butterfly baby tee with your baggy dark wash jeans (`w_001`), chunky white sneakers (`w_007`), and the black crossbody bag (`w_010`) for an effortless, classic 2000s street style look. 
+
+**Outfit 2:** Layer the baby tee under your black cropped zip hoodie (`w_005`), paired with the wide-leg khaki trousers (`w_002`) and black combat boots (`w_008`) to mix Y2K edge with a relaxed, vintage vibe.
+
+  Fit card: Found this cute little Y2K butterfly baby tee scrolling on Depop for just $18 and I'm obsessed. I'm totally planning to throw it on with baggy jeans and chunky sneakers for an effortless 2000s street style look, or layer it under a zip hoodie with wide-leg trousers for a grungier vibe. So excited to style this!
+
+0 model calls this session, 2 served from cache
 ```
 
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+$ python -c "from tools import search_listings; r = search_listings('graphic tee', max_price=30); print(len(r), 'results'); [print(x['id'], x['title'], x['price'], x['size']) for x in r[:3]]"
+7 results
+lst_002 Y2K Baby Tee — Butterfly Print 18.0 S/M
+lst_006 Graphic Tee — 2003 Tour Bootleg Style 24.0 L
+lst_017 Mesh Long-Sleeve Top — Black 15.0 S/M
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[1], get_example_wardrobe()))"
+**Outfit 1:** Pair the Y2K butterfly baby tee with your baggy dark wash jeans (`w_001`), chunky white sneakers (`w_007`), and the black crossbody bag (`w_010`) for an effortless, classic 2000s street style look. 
 
+**Outfit 2:** Layer the baby tee under your black cropped zip hoodie (`w_005`), paired with the wide-leg khaki trousers (`w_002`) and black combat boots (`w_008`) to mix Y2K edge with a relaxed, vintage vibe.
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[1]))"
+Obsessed is an understatement for this butterfly print Y2K baby tee I just scored on Depop for only $18. It’s giving total early 2000s Disney Channel star off-duty, especially paired with baggy light-wash jeans and beat-up white sneakers. Running to wear this out for iced coffee immediately.
 ```
+
+Note: the full-query output above also shows the trace lines, which came from unit 4 (added after this section was first written). The `suggest_outfit` and `create_fit_card` results can be served from the build cache, so a repeat run may show the same text.
 
 ---
 
@@ -302,24 +327,58 @@ My first full run (`results/run_2026-10-10_2132.md`) also showed that a test can
      the same length, your branch isn't working — and this is the fastest way
      anyone will ever find that out. -->
 
-**Happy path**
+**Happy path** (`python app.py ask 'adidas track jacket under $90' --trace`)
 
 ```
-
+[1] search_listings (via MCP)
+      in:  description='adidas track jacket under', size=None, max_price=90.0
+      out: 4 items: 90s Track Jacket - Navy/White Stripe, Denim Jacket - Light Wash, Cropped, 90s Leather Bomber - Black + 1 more
+[2] suggest_outfit
+      in:  item='90s Track Jacket - Navy/White Stripe', item_id=lst_004, wardrobe_items=10
+      out: **Outfit 1: Sporty Streetwear** * **New Item:** 90s Track Jacket * **Top:** White ribbed tank top (w_003)
+[3] create_fit_card
+      in:  item='90s Track Jacket - Navy/White Stripe', item_id=lst_004, outfit='**Outfit 1: Sporty Streetwear**
+*   **N
+      out: Scored this gorgeous navy and white striped 90s track jacket for just $45 on Poshmark and I'm obsessed. I'm pl
 ```
 
-**Empty search**
+**Empty search** (`python app.py ask 'miku helmet size xxxl under $100' --trace`)
 
 ```
-
+[1] search_listings (via MCP)
+      in:  description='miku helmet   under', size=xxxl, max_price=100.0
+      out: [] (empty)
+[2] branch: empty search
+      ->   stopping, suggest_outfit not called
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+The empty-search trace has 2 steps. `search_listings (via MCP)` returns `[]`, the branch fires, and the loop stops, so `suggest_outfit` and `create_fit_card` never run. The happy-path trace has 3 steps: the search finds listings, the loop picks the first one and stores it in the session, then passes that item to `suggest_outfit`, and its output on to `create_fit_card`. The empty trace being shorter shows the branch works.
+
+**On the MCP move:** `mcp_server.py` registers `search_listings` as an MCP tool with typed inputs and a one-line description. In `agent.py::run_agent` I replaced the direct call `search_listings(...)` with `mcp_client.call_tool("search_listings", {...})`, so the agent now reaches the tool through the MCP server in a separate process. Nothing behaved differently: the same list of dicts came back, and an empty search still returned `[]` and reached the empty branch. The only visible differences are the `(via MCP)` label in the trace and that each call starts the server again, so it is a bit slower. `suggest_outfit` and `create_fit_card` stay as direct calls, so a model failure is caught in `run_agent` itself. I also timed the same query both ways: the direct call took about 1 ms and the MCP call about 1,700 ms, with an identical result (checked with `==`). The extra time is the server starting as a new process on every call. So for this project the move changed nothing about the results and made the tool slower. Its value is reuse: another agent could call `search_listings` through its name, description and typed inputs without importing my code, which only pays off when more than one agent or app needs the tool.
 
 
+
+**Failure modes I triggered on purpose**
+
+1. **Empty search**
+   - Command: `python app.py ask 'miku helmet size xxxl under $100'`
+   - Agent said: "No listings matched 'miku helmet   under' in size xxxl under $100. Try removing the size, raising your max price, or using fewer or different keywords (for example 'denim jacket' instead of 'distressed light-wash denim jacket')."
+   - Model calls: 0, because `suggest_outfit` was never reached.
+   - Handler: `agent.py::run_agent`, the `if not session["search_results"]` branch.
+   - What the user can try: remove the size, raise the max price, or use fewer or different keywords.
+
+2. **Empty wardrobe**
+   - Command: `python app.py ask 'h&m comfy pant' --empty-wardrobe`
+   - Agent said: it found Corduroy Wide-Leg Pants - Rust ($32.0 on depop) and returned general styling advice, not a crash and not an empty string: "Here are two ways to style those rust corduroy pants: 1. Retro 70s Vibe - a cream-colored ribbed turtleneck or a fitted vintage graphic tee tucked in, brown leather platform clogs or ankle boots... 2. Cozy Cottagecore - an ivory blouse with embroidered floral details, canvas sneakers or Mary Jane flats..." followed by a fit card.
+   - Handler: `tools.py::suggest_outfit`, the branch that checks whether the wardrobe is empty and asks for general styling ideas.
+   - What the user can try: nothing is needed. The advice uses typical pieces, since there are no owned pieces to name.
+
+3. **Model unavailable**
+   - How I triggered it: changed one character of `GEMINI_API_KEY` in `.env`, then ran a query I had not asked before, so the cache could not answer it: `python app.py ask 'corduroy bucket hat under $20x'`.
+   - Agent said: "FitFindr found a match but couldn't reach the model to write the outfit and caption. The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com. Fix that, then run the same query again."
+   - Trace: `[2] model unavailable -> branch: model error, stopping`, with 1 model call made.
+   - Handler: `agent.py::run_agent`, `except ModelUnavailable`. Before I added it, the same failure printed a raw `ModelUnavailable: ...` line from `app.py` instead of a message from the agent.
+   - What the user can try: fix the key in `.env` or create a new one, then run the same query again.
 
 ---
 
@@ -364,10 +423,35 @@ Real output, criterion 3 scenario (`h&m comfy pant under $40`), `agent.py::run_a
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+No criterion is still missed (all five were MET 5/5 before and after), but the testing showed problems my criteria do not measure. Here is what I would do about each one, and why I stopped.
 
+1. **Prices written as `30$` or `100$` are ignored.** `agent.py::run_agent` only reads `$30`, so `max_price` stays `None`, there is no price limit, and the stray token stays in the description. Fix: also accept a number followed by `$` in the regex. I stopped because the unit allows the MCP move and one improvement only, and I used the improvement on the keyword matching, which I judged to be the bigger relevance problem.
+2. **Any single matching keyword counts.** `tools.py::search_listings` keeps a listing if even one keyword appears in its text, so `adidas track jacket` also returns a denim jacket and a leather bomber next to the track jacket. My short-keyword fix (3+ characters) did not change this. Fix: rank by how many keywords match and require a minimum share of them. I stopped because this changes what "matching" means, which would need its own criterion and a new before/after run.
+3. **"over $60" is not supported.** The tool only has a maximum price (`max_price`), so a minimum cannot be expressed. Fix: add a `min_price` input to the tool and the MCP registration. I stopped because it adds a feature, not a fix.
+4. **A blank query gives a weak message.** `python app.py ask ' '` ends with "No listings matched ''". Fix: check for an empty query before searching and say what to type. I stopped because it is a small edge case and not one of my criteria.
+5. **My targets were too easy** (see Verdicts and Diagnoses). The one I would tighten is criterion 1, so that the top result must contain a keyword from the query. Right now a loose match passes.
+6. **Only `search_listings` is on MCP.** `suggest_outfit` and `create_fit_card` are still direct calls. Moving them would need the server to catch the model error and return it, which was outside this unit.
+
+## How I Used AI
+
+<!-- Two specific moments. What you asked, what came back, what you changed.
+
+     "I used Claude to help me code" is not enough.
+
+     "I gave Claude my search_listings spec. It returned None on no match
+     instead of an empty list, so I changed it" is the level we want. -->
+
+**Moment 1**
+
+- *What I asked for:* I using claude to exploring a different posibility for me for solution
+- *What came back:* different ideas that spark my interest
+- *What I changed:* targeting with ideas i want to change to push out into testing to see if it viable 
+
+**Moment 2**
+
+- *What I asked for:* testing outcome with ai to try to prediction and then guessing 
+- *What came back:* prediction and how close its to what i want then i test it on real devices to prove the hypothesis
+- *What I changed:* after the test and verify if it work i push it on real data in here i was using fake data along with my data and test my hypothesis before with ai
 
 
 <!-- ═════════════════════════════════════════════════════════════════════

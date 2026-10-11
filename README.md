@@ -269,15 +269,24 @@ platform sneakers size 8 under $50     -> Platform Sneakers (48.0, US 8)
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools | 4 of 5 | MET (5/5) | All 5 tries of `adidas track jacket under $90` reached a fit card with no early stop. 5 passes is above the target of 4. |
+| 2 | Impossible query stops before the second tool | 5 of 5 | MET (5/5) | All 5 tries of `miku helmet size xxxl under $100` stopped at the empty branch with a message naming what to change. The trace has no suggest_outfit step and there were 0 model calls. |
+| 3 | Same item id throughout | 5 of 5 | MET (5/5) | The trace showed `item_id=lst_005` in both suggest_outfit and create_fit_card in all 5 tries of `h&m comfy pant under $40`, and lst_005 is the first search result. |
+| 4 | Fit card has 2-4 sentences and the price | 4 of 5 | MET (5/5) | All 5 fit cards for `corduroy bucket hat under $20` had 3 sentences and contained "$14". |
+| 5 | Results respect price and size | 5 of 5 | MET (5/5) | All 5 queries returned only listings at or under the price ceiling, with sizes matching as whole words. Search has no randomness, so the 5 tries were identical. |
 
 **Diagnoses**
 
+No criterion was missed, so there is no miss to trace to a tool, branch, session or model. I am not reporting a clean sheet, though. Testing showed two real weaknesses that my criteria did not catch:
 
+1. **The loop's query parsing.** `agent.py::run_agent` only reads a price written as `$30`. When I typed `30$`, `90$` or `100$` in manual runs, the price was ignored, `max_price` stayed `None`, and the stray token stayed in the description. "over $60" is not supported at all, since the tool only has a ceiling.
+2. **The tool's keyword matching.** `tools.py::search_listings` counts a keyword as matched if it appears anywhere in the text. `h&m comfy pant` became the keywords `h`, `m`, `comfy`, `pant`, and the letters `h` and `m` match almost every listing, so the search returned 33 matches. The same effect made `miles morale adidas 90$` seem to work in my first run: `90` matched `90s` in a title.
+
+These two are the same kind of problem. Both are in how my agent handles the query text before the model gets involved. The two model-written steps (outfit and fit card) never missed.
+
+My first full run (`results/run_2026-10-10_2132.md`) also showed that a test can pass for the wrong reason: criterion 1 used a query that matched no listing, and two criterion 5 queries returned nothing, which satisfies a price/size check without testing it. I replaced those queries and re-ran. The criteria and targets were not changed.
+
+**Were my targets too easy?** Yes, for most of them. Criteria 2, 3 and 5 test plain code with no randomness, so 5 of 5 was nearly guaranteed. Criterion 1 only asks whether a result exists, not whether it is relevant: the loosely matched track jacket counted as a pass. Only criterion 4 depends on the model, and it passed with sentence counts of 2 to 4, close to the 4-sentence limit on a few tries. If I tighten one target, it is criterion 1: the top result's title or tags should contain at least one keyword from the query.
 
 ---
 
@@ -321,26 +330,35 @@ full. -->
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** one line in `tools.py::search_listings`. Keywords shorter than 3 characters are now ignored when the description is split up: `if w not in skip:` became `if w not in skip and len(w) >= 3:`. Nothing else changed in this step.
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** the tool's loose keyword matching (see Verdicts and Diagnoses). A keyword counts as matched if it appears anywhere in a listing's text, so one- and two-letter tokens such as the `h` and `m` from `h&m`, or a stray `90`, match almost everything. Before the change, `h&m comfy pant under $40` matched 33 listings (the search returned the cap of 10), most of them not pants.
 
-### Run Log — After
+### Run Log: After
+
+Produced by `python run_eval.py --label after` (`results/run_2026-10-10_2155_after.md`), cache off, 5 tries per scenario, same scenarios as the before run.
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Same item id in session, suggest_outfit and create_fit_card | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card is 2-4 sentences and has the price | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Every result within the price ceiling and size | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
+Real output, criterion 3 scenario (`h&m comfy pant under $40`), `agent.py::run_agent`, after the change. The search now returns 2 items and the same `item_id=lst_005` still reaches both tools:
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+```
+[1] search_listings (via MCP)
+      in:  description='h&m comfy pant under', size=None, max_price=40.0
+      out: 2 items: Corduroy Wide-Leg Pants - Rust, Low-Rise Cargo Pants - Khaki
+[2] suggest_outfit
+      in:  item='Corduroy Wide-Leg Pants - Rust', item_id=lst_005, wardrobe_items=10
+[3] create_fit_card
+      in:  item='Corduroy Wide-Leg Pants - Rust', item_id=lst_005, ...
+```
 
-
+**Did it help, and how do I know:** It helped in the way I aimed at, but my five criteria cannot show it. The pass counts are 5/5 on every row both before and after, so the table is unchanged. The evidence is the search step for `h&m comfy pant under $40`: before, `search_results` was 10 (33 matches, capped); after, it is 2 (Corduroy Wide-Leg Pants and Low-Rise Cargo Pants, the actual pants). The first result, the selected item and every other scenario stayed the same, so nothing got worse. The honest limit is that this changed relevance on one query. It did not touch the larger problem that any single matching keyword counts, so `adidas track jacket` still returns a denim jacket and a bomber alongside the track jacket.
 
 ---
 

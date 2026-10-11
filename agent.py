@@ -132,10 +132,15 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     trace.check_iterations(count)
     parsed = session["parsed"]
     session["search_results"] = call_tool("search_listings", {
-    "description": parsed["description"],
-    "size": parsed["size"],
-    "max_price": parsed["max_price"],
-})
+        "description": parsed["description"],
+        "size": parsed["size"],
+        "max_price": parsed["max_price"],
+    })
+    trace.step(
+        "search_listings (via MCP)",
+        inputs=f"description={parsed['description']!r}, size={parsed['size']}, max_price={parsed['max_price']}",
+        returned=session["search_results"],
+    )
 
     # THE BRANCH: nothing found -> stop before suggest_outfit
     if not session["search_results"]:
@@ -147,26 +152,46 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             "different keywords (for example 'denim jacket' instead of 'distressed "
             "light-wash denim jacket')."
         )
+        trace.step("branch: empty search", note="stopping, suggest_outfit not called")
         return session
 
     # step 2: choose the first result and keep it in the session
     session["selected_item"] = session["search_results"][0]
 
-    # step 3: outfit, reading the item back out of the session
-    count += 1
-    trace.check_iterations(count)
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"], session["wardrobe"]
-    )
+    # steps 3 and 4: the two model calls
+    try:
+        count += 1
+        trace.check_iterations(count)
+        session["outfit_suggestion"] = suggest_outfit(
+            session["selected_item"], session["wardrobe"]
+        )
+        trace.step(
+            "suggest_outfit",
+            inputs=f"item={session['selected_item']['title']!r}, wardrobe_items={len(session['wardrobe'].get('items', []))}",
+            returned=session["outfit_suggestion"],
+        )
 
-    # step 4: fit card, reading the outfit and item back out of the session
-    count += 1
-    trace.check_iterations(count)
-    session["fit_card"] = create_fit_card(
-        session["outfit_suggestion"], session["selected_item"]
-    )
+        count += 1
+        trace.check_iterations(count)
+        session["fit_card"] = create_fit_card(
+            session["outfit_suggestion"], session["selected_item"]
+        )
+        trace.step(
+            "create_fit_card",
+            inputs=f"item={session['selected_item']['title']!r}, outfit={session['outfit_suggestion'][:40]!r}",
+            returned=session["fit_card"])
+        
+    except ModelUnavailable as exc:
+        session["error"] = (
+            "FitFindr found a match but couldn't reach the model to write the "
+            f"outfit and caption. {exc} Fix that, then run the same query again."
+        )
+        trace.step("model unavailable", note="branch: model error, stopping")
+        return session
 
     return session
+
+
 
 
 # ── running it directly ───────────────────────────────────────────────────────

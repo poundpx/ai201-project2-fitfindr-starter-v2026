@@ -85,7 +85,7 @@ def search_listings(
     words = re.findall(r"[a-z0-9']+", description.lower())
     keywords = []
     for w in words:
-        if w not in skip:
+        if w not in skip and len(w) >= 3:
             keywords.append(w)
 
     scored = []
